@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import random
 import re
 import warnings
@@ -674,7 +675,21 @@ class wait_combine(_WaitStrategyBase):
         self.strategies = strategies
 
     def __call__(self, attempts: int, *, seed: int | None = None) -> float:
-        return sum(strategy(attempts, seed=seed) for strategy in self.strategies)
+        return sum(
+            strategy(attempts, seed=_component_seed(seed, index))
+            for index, strategy in enumerate(self.strategies)
+        )
+
+
+def _component_seed(seed: int | None, index: int) -> int | None:
+    # Each summed strategy gets its own seed. Passing the shared seed to all
+    # of them would make two random waits draw the same value, so
+    # wait_random(0, 1) + wait_random(0, 1) would return 2 * U instead of
+    # the sum of two independent draws that tenacity's wait_combine returns.
+    if seed is None:
+        return None
+    digest = hashlib.sha256(f"{seed}:{index}".encode()).digest()
+    return int.from_bytes(digest[:4], "big")
 
 
 class stop_after_attempt(_StopConditionBase):

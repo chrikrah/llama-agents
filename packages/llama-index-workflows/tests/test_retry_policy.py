@@ -340,6 +340,16 @@ def test_wait_combine_preserves_seeded_determinism() -> None:
     assert combined(3, seed=123) == combined(3, seed=123)
 
 
+def test_wait_combine_draws_each_seeded_strategy_independently() -> None:
+    part = wait_random(min=0.0, max=1.0)
+    pair = part + wait_random(min=0.0, max=1.0)
+    triple = pair + wait_random(min=0.0, max=1.0)
+    for seed in range(20):
+        assert pair(0, seed=seed) != pytest.approx(2 * part(0, seed=seed))
+        assert triple(0, seed=seed) != pytest.approx(3 * part(0, seed=seed))
+        assert pair(0, seed=seed) == pair(0, seed=seed)
+
+
 def test_wait_full_jitter_alias() -> None:
     alias = wait_full_jitter(multiplier=1.0, exp_base=2.0, max=20.0, min=0.0)
     direct = wait_random_exponential(multiplier=1.0, exp_base=2.0, max=20.0, min=0.0)
